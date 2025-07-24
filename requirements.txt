@@ -1,4 +1,5 @@
 streamlit
 Pillow
-ImageHash
+imagehash
 opencv-python
+numpy
