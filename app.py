@@ -12,11 +12,16 @@ Upload multiple images. This app will:
 - Detect and remove **blurry images** using edge variance (Pillow-based)
 """)
 
-def detect_blur_pillow(image, threshold=20):
-    """Detect blur using edge variance (Pillow only). Lower variance = more blurry."""
-    edges = image.filter(ImageFilter.FIND_EDGES).convert("L")
+def detect_blur_pillow(image, threshold=100):
+    """Detect blur using edge variance (Pillow only)."""
+    gray = image.convert("L")
+    edges = gray.filter(ImageFilter.FIND_EDGES)
     variance = np.var(np.array(edges))
     return variance < threshold
+
+blur_threshold = st.slider(
+    "Blur detection threshold (lower = stricter)", min_value=5, max_value=500, value=100
+)
 
 uploaded_files = st.file_uploader(
     "Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True
@@ -30,13 +35,12 @@ if uploaded_files:
 
     for i, file in enumerate(uploaded_files):
         img = Image.open(file).convert("RGB")
-        if detect_blur_pillow(img):
+        if detect_blur_pillow(img, threshold=blur_threshold):
             blurry_indices.add(i)
         images.append(img)
         hashes.append(imagehash.phash(img))
 
-    # Detect duplicates using pHash
-    threshold = 5
+    threshold = 5  # hamming distance for pHash
     for i in range(len(hashes)):
         if i in blurry_indices:
             continue
@@ -46,18 +50,16 @@ if uploaded_files:
             if hashes[i] - hashes[j] <= threshold:
                 duplicates_indices.add(j)
 
-    # Keep only distinct, non-blurry images
     distinct_images = [
         img for idx, img in enumerate(images)
         if idx not in duplicates_indices and idx not in blurry_indices
     ]
 
-    st.write(f"📥 Uploaded {len(uploaded_files)} image(s).")
-    st.write(f"🫣 Excluded {len(blurry_indices)} blurry image(s).")
-    st.write(f"🧮 Found {len(distinct_images)} distinct, non-blurry image(s).")
+    st.write(f"📥 Uploaded: {len(uploaded_files)} image(s)")
+    st.write(f"🫣 Blurry images removed: {len(blurry_indices)}")
+    st.write(f"🧮 Distinct non-blurry images: {len(distinct_images)}")
 
     for i, img in enumerate(distinct_images):
         st.image(img, width=250, caption=f"Distinct Image #{i + 1}")
-
 else:
     st.info("Please upload images to begin.")
