@@ -78,6 +78,6 @@ if uploaded_files:
     cols = st.columns(4)
     for idx, i in enumerate(final_indices):
         with cols[idx % 4]:
-            st.image(images[i], caption=filenames[i], use_column_width=True)
+            st.image(images[i], caption=filenames[i],  use_container_width=True)
 else:
     st.info("Upload one or more images to get started.")
