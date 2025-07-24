@@ -1,4 +1,6 @@
 streamlit
-Pillow
+pillow
 imagehash
+opencv-python-headless
 numpy
+matplotlib
