@@ -1,23 +1,22 @@
 import streamlit as st
-from PIL import Image
+from PIL import Image, ImageFilter
 import imagehash
-import cv2
 import numpy as np
 
 st.set_page_config(page_title="Distinct Image Detector", layout="wide")
-st.title("🖼️ Distinct Image Detector (pHash + Blur Detection)")
+st.title("🖼️ Distinct Image Detector (pHash + Pillow Blur Detection)")
 
 st.markdown("""
 Upload multiple images. This app will:
 - Detect and remove **duplicate images** using perceptual hashing (pHash)
-- Detect and remove **blurry images** using Laplacian variance
+- Detect and remove **blurry images** using edge variance (Pillow-based)
 """)
 
-def detect_blur(image, threshold=100):
-    """Detect if an image is blurry using the Laplacian variance method."""
-    gray = np.array(image.convert("L"))  # Convert to grayscale
-    laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    return laplacian_var < threshold  # True if blurry
+def detect_blur_pillow(image, threshold=20):
+    """Detect blur using edge variance (Pillow only). Lower variance = more blurry."""
+    edges = image.filter(ImageFilter.FIND_EDGES).convert("L")
+    variance = np.var(np.array(edges))
+    return variance < threshold
 
 uploaded_files = st.file_uploader(
     "Upload images", type=["jpg", "jpeg", "png"], accept_multiple_files=True
@@ -29,17 +28,15 @@ if uploaded_files:
     duplicates_indices = set()
     blurry_indices = set()
 
-    # Load images, check for blur, and compute pHash
     for i, file in enumerate(uploaded_files):
         img = Image.open(file).convert("RGB")
-        if detect_blur(img):
+        if detect_blur_pillow(img):
             blurry_indices.add(i)
         images.append(img)
-        img_hash = imagehash.phash(img)
-        hashes.append(img_hash)
+        hashes.append(imagehash.phash(img))
 
-    # Detect duplicates
-    threshold = 5  # Hamming distance threshold
+    # Detect duplicates using pHash
+    threshold = 5
     for i in range(len(hashes)):
         if i in blurry_indices:
             continue
@@ -49,7 +46,7 @@ if uploaded_files:
             if hashes[i] - hashes[j] <= threshold:
                 duplicates_indices.add(j)
 
-    # Filter distinct, non-blurry images
+    # Keep only distinct, non-blurry images
     distinct_images = [
         img for idx, img in enumerate(images)
         if idx not in duplicates_indices and idx not in blurry_indices
@@ -59,7 +56,6 @@ if uploaded_files:
     st.write(f"🫣 Excluded {len(blurry_indices)} blurry image(s).")
     st.write(f"🧮 Found {len(distinct_images)} distinct, non-blurry image(s).")
 
-    # Display the images
     for i, img in enumerate(distinct_images):
         st.image(img, width=250, caption=f"Distinct Image #{i + 1}")
 
